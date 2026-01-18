@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "yolo_object_detector_android"
+rootProject.name = "YoloObjectDetectorAndroid"
 include(":sample")
 include(":yolo-object-detector")
