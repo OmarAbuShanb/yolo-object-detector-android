@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.library)
     id("maven-publish")
@@ -51,7 +49,6 @@ dependencies {
     implementation(libs.tensorflow.lite.gpu.api)
 }
 
-// Maven Publishing Configuration
 afterEvaluate {
     publishing {
         publications {
@@ -63,56 +60,37 @@ afterEvaluate {
                 version = "1.0.0"
 
                 pom {
-                    name = "YOLO Object Detector Android"
+                    name.set("YOLO Object Detector Android")
                     description.set("Android YOLO object detection library using TensorFlow Lite")
-                    url = "https://github.com/OmarAbuShanb/yolo-object-detector-android"
+                    url.set("https://github.com/OmarAbuShanb/yolo-object-detector-android")
 
                     licenses {
                         license {
-                            name = "The Apache License, Version 2.0"
-                            url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                            name.set("Apache License 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                         }
                     }
 
                     developers {
                         developer {
-                            id = "OmarAbuShanb"
-                            name = "Omar Abu Shanb"
-                            email = "2200117700@gmail.com"
+                            id.set("OmarAbuShanb")
+                            name.set("Omar Abu Shanb")
+                            email.set("2200117700@gmail.com")
                         }
                     }
 
                     scm {
-                        connection =
-                            "scm:git:git://github.com/OmarAbuShanb/yolo-object-detector-android.git"
-                        developerConnection =
-                            "scm:git:ssh://github.com/OmarAbuShanb/yolo-object-detector-android.git"
-                        url = "https://github.com/OmarAbuShanb/yolo-object-detector-android"
+                        connection.set("scm:git:github.com/OmarAbuShanb/yolo-object-detector-android.git")
+                        developerConnection.set("scm:git:ssh://github.com/OmarAbuShanb/yolo-object-detector-android.git")
+                        url.set("https://github.com/OmarAbuShanb/yolo-object-detector-android")
                     }
-                }
-            }
-        }
-
-        repositories {
-            maven {
-                name = "central"
-                url =
-                    uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC")
-                credentials {
-                    username = System.getenv("CENTRAL_USERNAME")
-                    password = System.getenv("CENTRAL_PASSWORD")
                 }
             }
         }
     }
 
     signing {
-        val signingKey = System.getenv("ORG_GRADLE_PROJECT_signingKey")
-        val signingPassword = System.getenv("ORG_GRADLE_PROJECT_signingPassword")
-
-        if (!signingKey.isNullOrEmpty() && !signingPassword.isNullOrEmpty()) {
-            useInMemoryPgpKeys(signingKey, signingPassword)
-            sign(publishing.publications["release"])
-        }
+        useGpgCmd()
+        sign(publishing.publications["release"])
     }
 }
