@@ -9,10 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,13 +23,23 @@ jobs:
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-        env:
-          GPG_TTY: ${{ github.workspace }}
 
-      - name: Publish to Maven Central
+      - name: Build Maven publication
+        run: ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
+
+      - name: Download Sonatype Central CLI
+        run: |
+          curl -L https://github.com/sonatype-nexus-community/central-publishing-cli/releases/latest/download/central-linux-amd64 \
+            -o central
+          chmod +x central
+
+      - name: Publish bundle to Central
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew :yolo-object-detector:publish
+          ./central publish \
+            --username "$CENTRAL_USERNAME" \
+            --password "$CENTRAL_PASSWORD" \
+            --publishing-type AUTOMATIC \
+            yolo-object-detector/build/publications/release
