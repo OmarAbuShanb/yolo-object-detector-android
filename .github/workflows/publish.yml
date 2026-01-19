@@ -25,7 +25,7 @@ jobs:
       - name: Build and Publish to Maven Local
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.SIGNING_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
 
       - name: Download Sonatype Central CLI
