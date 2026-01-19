@@ -24,7 +24,7 @@ jobs:
         run: ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
 
       - name: Upload to Maven Central
-        uses: sonatype/central-publishing-action@v1
+        uses: sonatype-nexus-community/central-publishing-action@v1
         with:
           username: ${{ secrets.CENTRAL_USERNAME }}
           password: ${{ secrets.CENTRAL_PASSWORD }}
