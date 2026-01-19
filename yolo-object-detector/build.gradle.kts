@@ -51,16 +51,6 @@ dependencies {
     implementation(libs.tensorflow.lite.gpu.api)
 }
 
-val localProps = Properties().apply {
-    val propsFile = rootProject.file("local.properties")
-    if (propsFile.exists()) {
-        load(propsFile.inputStream())
-    }
-}
-
-fun getPropertyOrEnv(key: String, envKey: String): String? =
-    localProps.getProperty(key) ?: System.getenv(envKey)
-
 // Maven Publishing Configuration
 afterEvaluate {
     publishing {
@@ -109,32 +99,20 @@ afterEvaluate {
                 url =
                     uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC")
                 credentials {
-                    username = getPropertyOrEnv("centralUsername", "CENTRAL_USERNAME")
-                    password = getPropertyOrEnv("centralPassword", "CENTRAL_PASSWORD")
+                    username = System.getenv("CENTRAL_USERNAME")
+                    password = System.getenv("CENTRAL_PASSWORD")
                 }
             }
         }
     }
 
     signing {
-        val keyId = getPropertyOrEnv("signing.keyId", "SIGNING_KEY_ID")
-        val password = getPropertyOrEnv("signing.password", "SIGNING_PASSWORD")
-        val secretKeyRingFile = getPropertyOrEnv("signing.secretKeyRingFile", "SIGNING_SECRET_KEY_RING_FILE")
+        val signingKey = System.getenv("ORG_GRADLE_PROJECT_signingKey")
+        val signingPassword = System.getenv("ORG_GRADLE_PROJECT_signingPassword")
 
-        if (keyId != null && password != null) {
-            extra["signing.keyId"] = keyId
-            extra["signing.password"] = password
-
-            if (secretKeyRingFile != null) {
-                extra["signing.secretKeyRingFile"] = secretKeyRingFile
-            } else {
-                val gpgKey = System.getenv("ORG_GRADLE_PROJECT_signingKey")
-                if (gpgKey != null) {
-                    useInMemoryPgpKeys(keyId, gpgKey, password)
-                }
-            }
+        if (!signingKey.isNullOrEmpty() && !signingPassword.isNullOrEmpty()) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+            sign(publishing.publications["release"])
         }
-
-        sign(publishing.publications["release"])
     }
 }
