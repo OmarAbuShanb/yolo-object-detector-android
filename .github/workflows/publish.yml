@@ -9,24 +9,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK and GPG
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Build and publish to Maven Local
-        run: ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        env:
+          GPG_TTY: ${{ github.workspace }}
 
-      - name: Upload to Maven Central
-        uses: sonatype-nexus-community/central-publishing-action@v1
-        with:
-          username: ${{ secrets.CENTRAL_USERNAME }}
-          password: ${{ secrets.CENTRAL_PASSWORD }}
-          publishing-type: AUTOMATIC
-          path: yolo-object-detector/build/publications/release
+      - name: Publish to Maven Central
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew :yolo-object-detector:publish
