@@ -93,10 +93,14 @@ afterEvaluate {
         val signingKey = System.getenv("GPG_PRIVATE_KEY")
         val signingPassword = System.getenv("GPG_PASSPHRASE")
 
-        if (!signingKey.isNullOrEmpty() && !signingPassword.isNullOrEmpty()) {
-            useInMemoryPgpKeys(signingKey, signingPassword)
+        if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
+            useInMemoryPgpKeys(
+                null,
+                signingKey,
+                signingPassword
+            )
         }
 
-        sign(publishing.publications["release"])
+        sign(publishing.publications)
     }
 }
