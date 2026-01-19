@@ -52,7 +52,10 @@ dependencies {
 }
 
 val localProps = Properties().apply {
-    load(rootProject.file("local.properties").inputStream())
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) {
+        load(propsFile.inputStream())
+    }
 }
 
 fun getPropertyOrEnv(key: String, envKey: String): String? =
