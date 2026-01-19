@@ -88,10 +88,11 @@ afterEvaluate {
             }
         }
     }
+}
 
-    signing {
-        val signingKey = System.getenv("GPG_PRIVATE_KEY")
-        val signingPassword = System.getenv("GPG_PASSPHRASE")
+signing {
+    val signingKey = System.getenv("GPG_PRIVATE_KEY")
+    val signingPassword = System.getenv("GPG_PASSPHRASE")
 
     require(!signingKey.isNullOrBlank()) {
         "GPG_PRIVATE_KEY is missing"
@@ -100,14 +101,12 @@ afterEvaluate {
         "GPG_PASSPHRASE is missing"
     }
 
-        if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
-            useInMemoryPgpKeys(
-                null,
-                signingKey,
-                signingPassword
-            )
-        }
+    useInMemoryPgpKeys(
+        null,
+        signingKey,
+        signingPassword
+    )
 
-        sign(publishing.publications)
-    }
+    sign(publishing.publications)
 }
+
