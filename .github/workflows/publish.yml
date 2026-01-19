@@ -3,6 +3,7 @@ name: Publish to Maven Central
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -15,35 +16,17 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Configure GPG for CI
-        run: |
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-          echo "use-agent" >> ~/.gnupg/gpg.conf
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpgconf --kill gpg-agent
-          gpgconf --launch gpg-agent
-
-      - name: Import GPG key
+      - name: Build and Publish to Maven Local
         env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | \
-          gpg --batch --yes --pinentry-mode loopback \
-              --passphrase "$GPG_PASSPHRASE" --import
-
-      - name: Build and sign publication
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :yolo-object-detector:publishReleasePublicationToMavenLocal
 
       - name: Download Sonatype Central CLI
         run: |
@@ -59,4 +42,4 @@ jobs:
             --username "$CENTRAL_USERNAME" \
             --password "$CENTRAL_PASSWORD" \
             --publishing-type AUTOMATIC \
-            yolo-object-detector/build/publications/release
+            ~/.m2/repository/io/github/omarabushanb/yolo-object-detector/1.0.0/
