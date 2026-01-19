@@ -55,6 +55,9 @@ val localProps = Properties().apply {
     load(rootProject.file("local.properties").inputStream())
 }
 
+fun getPropertyOrEnv(key: String, envKey: String): String? =
+    localProps.getProperty(key) ?: System.getenv(envKey)
+
 // Maven Publishing Configuration
 afterEvaluate {
     publishing {
@@ -100,24 +103,33 @@ afterEvaluate {
         repositories {
             maven {
                 name = "central"
-                url = uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC")
+                url =
+                    uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC")
                 credentials {
-                    username = localProps.getProperty("centralUsername") ?: System.getenv("CENTRAL_USERNAME")
-                    password = localProps.getProperty("centralPassword") ?: System.getenv("CENTRAL_PASSWORD")
+                    username = getPropertyOrEnv("centralUsername", "CENTRAL_USERNAME")
+                    password = getPropertyOrEnv("centralPassword", "CENTRAL_PASSWORD")
                 }
             }
         }
     }
 
     signing {
-        val keyId = localProps.getProperty("signing.keyId")
-        val password = localProps.getProperty("signing.password")
-        val secretKeyRingFile = localProps.getProperty("signing.secretKeyRingFile")
+        val keyId = getPropertyOrEnv("signing.keyId", "SIGNING_KEY_ID")
+        val password = getPropertyOrEnv("signing.password", "SIGNING_PASSWORD")
+        val secretKeyRingFile = getPropertyOrEnv("signing.secretKeyRingFile", "SIGNING_SECRET_KEY_RING_FILE")
 
-        if (keyId != null && password != null && secretKeyRingFile != null) {
+        if (keyId != null && password != null) {
             extra["signing.keyId"] = keyId
             extra["signing.password"] = password
-            extra["signing.secretKeyRingFile"] = secretKeyRingFile
+
+            if (secretKeyRingFile != null) {
+                extra["signing.secretKeyRingFile"] = secretKeyRingFile
+            } else {
+                val gpgKey = System.getenv("ORG_GRADLE_PROJECT_signingKey")
+                if (gpgKey != null) {
+                    useInMemoryPgpKeys(keyId, gpgKey, password)
+                }
+            }
         }
 
         sign(publishing.publications["release"])
