@@ -51,11 +51,11 @@ dependencies {
     implementation(libs.tensorflow.lite.gpu.api)
 }
 
-
 val localProps = Properties().apply {
     load(rootProject.file("local.properties").inputStream())
 }
 
+// Maven Publishing Configuration
 afterEvaluate {
     publishing {
         publications {
@@ -64,32 +64,34 @@ afterEvaluate {
 
                 groupId = "io.github.omarabushanb"
                 artifactId = "yolo-object-detector"
-                version = "1.0.1"
+                version = "1.0.0"
 
                 pom {
-                    name.set("YOLO Object Detector")
+                    name = "YOLO Object Detector Android"
                     description.set("Android YOLO object detection library using TensorFlow Lite")
-                    url.set("https://github.com/OmarAbuShanb/yolo-object-detector")
+                    url = "https://github.com/OmarAbuShanb/yolo-object-detector-android"
 
                     licenses {
                         license {
-                            name.set("Apache License 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                            name = "The Apache License, Version 2.0"
+                            url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
                         }
                     }
 
                     developers {
                         developer {
-                            id.set("OmarAbuShanb")
-                            name.set("Omar Abu Shanb")
-                            email.set("22001177oo@gmail.com")
+                            id = "OmarAbuShanb"
+                            name = "Omar Abu Shanb"
+                            email = "2200117700@gmail.com"
                         }
                     }
 
                     scm {
-                        connection.set("scm:git:github.com/OmarAbuShanb/yolo-object-detector.git")
-                        developerConnection.set("scm:git:ssh://github.com/OmarAbuShanb/yolo-object-detector.git")
-                        url.set("https://github.com/OmarAbuShanb/yolo-object-detector")
+                        connection =
+                            "scm:git:git://github.com/OmarAbuShanb/yolo-object-detector-android.git"
+                        developerConnection =
+                            "scm:git:ssh://github.com/OmarAbuShanb/yolo-object-detector-android.git"
+                        url = "https://github.com/OmarAbuShanb/yolo-object-detector-android"
                     }
                 }
             }
@@ -97,22 +99,27 @@ afterEvaluate {
 
         repositories {
             maven {
-                name = "MavenCentral"
-                url = uri("https://central.sonatype.com/api/v1/publish")
+                name = "central"
+                url = uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC")
                 credentials {
-                    username = localProps["centralUsername"] as String
-                    password = localProps["centralPassword"] as String
+                    username = localProps.getProperty("centralUsername") ?: System.getenv("CENTRAL_USERNAME")
+                    password = localProps.getProperty("centralPassword") ?: System.getenv("CENTRAL_PASSWORD")
                 }
             }
         }
     }
-}
 
-signing {
-    useInMemoryPgpKeys(
-        localProps["signing.keyId"] as String,
-        file(localProps["signing.secretKeyRingFile"] as String).readText(),
-        localProps["signing.password"] as String
-    )
-    sign(publishing.publications)
+    signing {
+        val keyId = localProps.getProperty("signing.keyId")
+        val password = localProps.getProperty("signing.password")
+        val secretKeyRingFile = localProps.getProperty("signing.secretKeyRingFile")
+
+        if (keyId != null && password != null && secretKeyRingFile != null) {
+            extra["signing.keyId"] = keyId
+            extra["signing.password"] = password
+            extra["signing.secretKeyRingFile"] = secretKeyRingFile
+        }
+
+        sign(publishing.publications["release"])
+    }
 }
