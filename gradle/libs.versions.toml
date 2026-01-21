@@ -22,4 +22,5 @@ tensorflow-lite-gpu-api = { module = "org.tensorflow:tensorflow-lite-gpu-api", v
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version = "0.36.0" }
 
