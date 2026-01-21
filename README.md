@@ -1,15 +1,12 @@
 # YOLO Object Detector (Android)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.omarabushanb/yolo-object-detector.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.omarabushanb/yolo-object-detector)
+[![JitPack](https://jitpack.io/v/OmarAbuShanb/yolo-object-detector-android.svg)](https://jitpack.io/#$OmarAbuShanb/yolo-object-detector-android)
+![Android API](https://img.shields.io/badge/API-21%2B-brightgreen.svg)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 Lightweight YOLO object detection library for Android using TensorFlow Lite.  
 Designed to be simple to use while still supporting common YOLO model variations.
-
-The library handles:
-- Image preprocessing (letterbox)
-- Model inference
-- Output decoding
-- Non-Maximum Suppression (NMS)
-
-It works with both float and INT8 models, with or without built-in NMS.
 
 ---
 
@@ -21,15 +18,24 @@ It works with both float and INT8 models, with or without built-in NMS.
 - CPU fallback with XNNPACK
 - Simple Kotlin API
 - Custom labels support
-- No external dependencies beyond TensorFlow Lite
 
 ---
 
 ## Installation
 
-### Gradle (JitPack)
+### ✅ Maven Central (Recommended)
 
-Add JitPack to your repositories:
+```kotlin
+dependencies {
+    implementation("io.github.omarabushanb:yolo-object-detector:1.0.0")
+}
+```
+
+---
+
+### Alternative: JitPack / GitHub
+
+Add JitPack repository:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -44,7 +50,9 @@ dependencyResolutionManagement {
 Add the dependency:
 
 ```kotlin
-implementation("com.github.OmarAbuShanb:yolo-object-detector:v1.0.0")
+dependencies {
+    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.0")
+}
 ```
 
 ---
@@ -143,9 +151,9 @@ data class DetectedBox(
 )
 ```
 
-- `classId`: detected class index  
-- `score`: confidence score  
-- `box`: bounding box in original image coordinates  
+- `classId`: detected class index
+- `score`: confidence score
+- `box`: bounding box in original image coordinates
 
 ---
 
@@ -155,8 +163,8 @@ data class DetectedBox(
 - RGB input
 - YOLO-style output
 - Supports:
-  - Raw outputs (manual NMS applied)
-  - Models with built-in NMS
+    - Raw outputs (manual NMS applied)
+    - Models with built-in NMS
 
 Both float and full INT8 quantized models are supported.
 
@@ -173,3 +181,4 @@ Both float and full INT8 quantized models are supported.
 ## License
 
 Apache License 2.0
+
