@@ -81,7 +81,7 @@ class YoloObjectDetector(
 
     init {
         // Initialize the TensorFlow Lite interpreter with the model and options.
-        interpreter = Interpreter(loadModel(context), createInterpreterOptions())
+        interpreter = createSafeInterpreter(context)
         // Determine if the model is fully quantized (INT8/UINT8).
         determineQuantizationStatus()
         // Initialize output buffers based on model type.
@@ -640,29 +640,69 @@ class YoloObjectDetector(
     }
 
     /**
-     * Creates and configures [Interpreter.Options] for the TensorFlow Lite interpreter.
-     * This includes setting the number of threads and optionally enabling a GPU delegate or XNNPACK.
+     * Creates a TensorFlow Lite [Interpreter] in a safe and crash-free way.
      *
-     * @return An [Interpreter.Options] object with the desired configurations.
+     * This method automatically selects the best available execution backend
+     * in the following priority order:
+     *
+     * 1. **GPU Delegate** – Used if the device supports it *and* the model is compatible.
+     *    If the GPU delegate fails to initialize (due to unsupported ops in the model),
+     *    the error is caught and the method safely falls back to the next option.
+     *
+     * 2. **NNAPI** – Used as a secondary hardware acceleration option when GPU is unavailable
+     *    or incompatible with the model.
+     *
+     * 3. **CPU (XNNPACK)** – Guaranteed fallback that always works, ensuring the application
+     *    never crashes during interpreter initialization.
+     *
+     * This approach prevents runtime crashes caused by unsupported TensorFlow Lite
+     * operations when using hardware delegates and makes the detector robust across
+     * different devices and models.
+     *
+     * @param context Android context used to load the model from assets.
+     * @return A fully initialized [Interpreter] ready for inference.
      */
-    private fun createInterpreterOptions(): Interpreter.Options {
-        val options = Interpreter.Options().setNumThreads(config.numThreads)
+    private fun createSafeInterpreter(context: Context): Interpreter {
+        val modelBuffer = loadModel(context)
 
+        // GPU
         if (config.useGpuIfAvailable) {
-            val compatibilityList = CompatibilityList()
-            // Check if GPU delegate is supported on the current device.
-            if (compatibilityList.isDelegateSupportedOnThisDevice) {
-                // Create and add a GpuDelegate with the best available options.
-                gpuDelegate = GpuDelegate(compatibilityList.bestOptionsForThisDevice)
-                options.addDelegate(gpuDelegate)
-                Log.d(TAG, "GPU Delegate Enabled")
-                return options
+            try {
+                val options = Interpreter.Options().setNumThreads(config.numThreads)
+                val compatibilityList = CompatibilityList()
+
+                if (compatibilityList.isDelegateSupportedOnThisDevice) {
+                    gpuDelegate = GpuDelegate(compatibilityList.bestOptionsForThisDevice)
+                    options.addDelegate(gpuDelegate)
+                    Log.d(TAG, "Trying GPU Delegate")
+
+                    return Interpreter(modelBuffer, options)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "GPU Delegate failed, falling back", e)
+                gpuDelegate?.close()
+                gpuDelegate = null
             }
         }
 
-        // If GPU is not used or available, enable XNNPACK for CPU acceleration.
-        options.setUseXNNPACK(true)
-        Log.d(TAG, "XNNPACK Enabled")
-        return options
+        // NNAPI
+        try {
+            val options = Interpreter.Options()
+                .setNumThreads(config.numThreads)
+                .setUseNNAPI(true)
+
+            Log.d(TAG, "Trying NNAPI")
+            return Interpreter(modelBuffer, options)
+        } catch (e: Exception) {
+            Log.e(TAG, "NNAPI failed, falling back to CPU", e)
+        }
+
+        // CPU + XNNPACK
+        val options = Interpreter.Options()
+            .setNumThreads(config.numThreads)
+            .setUseXNNPACK(true)
+
+        Log.d(TAG, "Using CPU (XNNPACK)")
+        return Interpreter(modelBuffer, options)
     }
 }

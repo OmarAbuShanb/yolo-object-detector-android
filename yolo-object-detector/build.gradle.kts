@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.vanniktech.maven.publish)
@@ -50,7 +49,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.omarabushanb",
         artifactId = "yolo-object-detector",
-        version = "1.0.0"
+        version = "1.0.1"
     )
 
     pom {
