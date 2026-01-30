@@ -79,6 +79,11 @@ class YoloObjectDetector(
     /** Flag indicating if the model uses full integer (INT8/UINT8) quantization for both input and output. */
     private var isFullInt8 = false
 
+    private var inputScale = 1f
+    private var inputZeroPoint = 0
+
+    private val lock = Any()
+
     init {
         // Initialize the TensorFlow Lite interpreter with the model and options.
         interpreter = createSafeInterpreter(context)
@@ -95,12 +100,21 @@ class YoloObjectDetector(
      * Sets `isFullInt8` to true if both input and output tensors are of INT8 or UINT8 type.
      */
     private fun determineQuantizationStatus() {
-        val inputType = interpreter.getInputTensor(0).dataType()
-        val outputType = interpreter.getOutputTensor(0).dataType()
+        val inputTensor = interpreter.getInputTensor(0)
+        val outputTensor = interpreter.getOutputTensor(0)
+
+        val inputType = inputTensor.dataType()
+        val outputType = outputTensor.dataType()
 
         isFullInt8 =
             (inputType == DataType.INT8 || inputType == DataType.UINT8) &&
                     (outputType == DataType.INT8 || outputType == DataType.UINT8)
+
+        if (isFullInt8) {
+            val q = inputTensor.quantizationParams()
+            inputScale = q.scale
+            inputZeroPoint = q.zeroPoint
+        }
     }
 
     /**
@@ -183,7 +197,7 @@ class YoloObjectDetector(
      * Closes the TensorFlow Lite interpreter and any associated delegates (e.g., GPU delegate).
      * It is crucial to call this method to release resources when the detector is no longer needed.
      */
-    fun close() {
+    fun close() = synchronized(lock) {
         try {
             interpreter.close()
             gpuDelegate?.close()
@@ -200,8 +214,7 @@ class YoloObjectDetector(
      * @param bitmap The input [Bitmap] on which to perform detection.
      * @return A list of [DetectedBox] objects representing the detected objects.
      */
-    fun detect(bitmap: Bitmap): List<DetectedBox> {
-        // Preprocess the input bitmap using letterboxing to maintain aspect ratio and fit model input size.
+    fun detect(bitmap: Bitmap): List<DetectedBox> = synchronized(lock) {
         val letterboxedBitmap = letterbox(bitmap)
 
         return when {
@@ -615,11 +628,20 @@ class YoloObjectDetector(
         bitmap.getPixels(pixels, 0, inputSize, 0, 0, inputSize, inputSize)
 
         for (p in pixels) {
+            val r = ((p shr 16) and 0xFF) / 255f
+            val g = ((p shr 8) and 0xFF) / 255f
+            val b = (p and 0xFF) / 255f
+
+            val qr = (r / inputScale + inputZeroPoint).toInt().toByte()
+            val qg = (g / inputScale + inputZeroPoint).toInt().toByte()
+            val qb = (b / inputScale + inputZeroPoint).toInt().toByte()
+
             // Extract R, G, B components as bytes.
-            inputBufferInt8.put(((p shr 16) and 0xFF).toByte()) // Red
-            inputBufferInt8.put(((p shr 8) and 0xFF).toByte())  // Green
-            inputBufferInt8.put((p and 0xFF).toByte())          // Blue
+            inputBufferInt8.put(qr) // Red
+            inputBufferInt8.put(qg) // Green
+            inputBufferInt8.put(qb) // Blue
         }
+
         inputBufferInt8.rewind()
     }
 
