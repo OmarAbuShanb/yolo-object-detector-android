@@ -27,7 +27,7 @@ Designed to be simple to use while still supporting common YOLO model variations
 
 ```kotlin
 dependencies {
-    implementation("io.github.omarabushanb:yolo-object-detector:1.0.1")
+    implementation("io.github.omarabushanb:yolo-object-detector:1.0.2")
 }
 ```
 
@@ -51,7 +51,7 @@ Add the dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.1")
+    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.2")
 }
 ```
 
@@ -116,7 +116,7 @@ override fun onDestroy() {
 `YoloConfig` controls how the detector behaves:
 
 | Property            | Description                                 |
-| ------------------- | ------------------------------------------- |
+|---------------------|---------------------------------------------|
 | `modelAssetPath`    | Path to the `.tflite` model inside `assets` |
 | `confThreshold`     | Minimum confidence score                    |
 | `iouThreshold`      | IOU threshold for NMS                       |
