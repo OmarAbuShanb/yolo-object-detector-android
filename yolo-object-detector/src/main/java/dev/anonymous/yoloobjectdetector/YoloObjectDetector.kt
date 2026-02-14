@@ -207,6 +207,16 @@ class YoloObjectDetector(
     }
 
     /**
+     * Sets the confidence threshold for object detection.
+     * Detections with a score below this value will be discarded.
+     *
+     * @param threshold The new confidence threshold (0.0f to 1.0f).
+     */
+    fun setConfThreshold(threshold: Float) {
+        config.confThreshold = threshold.coerceIn(0.0f, 1.0f)
+    }
+
+    /**
      * Performs object detection on the given [Bitmap].
      * The input bitmap is first preprocessed (letterboxed) to match the model's input requirements.
      * Then, inference is run, and the raw output is post-processed to produce a list of [DetectedBox]es.

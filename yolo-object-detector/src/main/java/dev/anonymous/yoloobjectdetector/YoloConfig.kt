@@ -14,7 +14,7 @@ package dev.anonymous.yoloobjectdetector
  */
 data class YoloConfig(
     val modelAssetPath: String,
-    val confThreshold: Float = 0.25f,
+    var confThreshold: Float = 0.25f,
     val iouThreshold: Float = 0.7f,
     val padColor: Int = 114,
     val numThreads: Int = 4,
