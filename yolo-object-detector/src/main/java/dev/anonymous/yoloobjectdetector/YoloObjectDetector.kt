@@ -331,12 +331,12 @@ class YoloObjectDetector(
     ): List<DetectedBox> {
         val boxes = ArrayList<DetectedBox>()
 
-        for (i in 0 until numAnchors) {
+        for (i in 0..numAnchors) {
             var bestScore = 0f
             var bestClass = -1
 
             // Find the class with the highest confidence score for this anchor.
-            for (c in 0 until numClasses) {
+            for (c in 0..numClasses) {
                 val score = out[0][4 + c][i]
                 if (score > bestScore) {
                     bestScore = score
@@ -383,12 +383,12 @@ class YoloObjectDetector(
     ): List<DetectedBox> {
         val boxes = ArrayList<DetectedBox>()
 
-        for (i in 0 until numAnchors) {
+        for (i in 0..numAnchors) {
             var bestScore = 0f
             var bestClass = -1
 
             // Find the class with the highest confidence score for this anchor.
-            for (c in 0 until numClasses) {
+            for (c in 0..numClasses) {
                 val score = dequantizeByte(out[0][4 + c][i], outputZeroPoint, outputScale)
                 if (score > bestScore) {
                     bestScore = score
@@ -672,69 +672,104 @@ class YoloObjectDetector(
     }
 
     /**
-     * Creates a TensorFlow Lite [Interpreter] in a safe and crash-free way.
+     * Creates a TensorFlow Lite [Interpreter] with crash-safe delegate probing.
      *
-     * This method automatically selects the best available execution backend
-     * in the following priority order:
+     * Each hardware delegate (GPU, NNAPI) is tried with a journaled probe:
+     * a [DelegateProber] writes a `PROBING` flag to disk **before** attempting the
+     * delegate. If construction **and** a warm-up inference succeed, the flag is
+     * promoted to `SAFE`. If the process is killed by a native crash (SIGSEGV /
+     * SIGABRT), the flag stays `PROBING`; on the next cold start it is converted
+     * to `BLOCKED` and that delegate is permanently skipped for this model.
      *
-     * 1. **GPU Delegate** – Used if the device supports it *and* the model is compatible.
-     *    If the GPU delegate fails to initialize (due to unsupported ops in the model),
-     *    the error is caught and the method safely falls back to the next option.
-     *
-     * 2. **NNAPI** – Used as a secondary hardware acceleration option when GPU is unavailable
-     *    or incompatible with the model.
-     *
-     * 3. **CPU (XNNPACK)** – Guaranteed fallback that always works, ensuring the application
-     *    never crashes during interpreter initialization.
-     *
-     * This approach prevents runtime crashes caused by unsupported TensorFlow Lite
-     * operations when using hardware delegates and makes the detector robust across
-     * different devices and models.
+     * Priority order: GPU → NNAPI → CPU (XNNPACK, always safe).
      *
      * @param context Android context used to load the model from assets.
      * @return A fully initialized [Interpreter] ready for inference.
      */
     private fun createSafeInterpreter(context: Context): Interpreter {
         val modelBuffer = loadModel(context)
+        val prober = DelegateProber(context, config.modelAssetPath)
 
-        // GPU
-        if (config.useGpuIfAvailable) {
+        // ── GPU ──────────────────────────────────────────────────────
+        if (!prober.isBlocked(DelegateProber.Delegate.GPU)) {
             try {
-                val options = Interpreter.Options().setNumThreads(config.numThreads)
                 val compatibilityList = CompatibilityList()
-
                 if (compatibilityList.isDelegateSupportedOnThisDevice) {
+                    val needsProbe = !prober.isSafe(DelegateProber.Delegate.GPU)
+                    if (needsProbe) prober.markProbing(DelegateProber.Delegate.GPU)
+
+                    val options = Interpreter.Options().setNumThreads(config.numThreads)
                     gpuDelegate = GpuDelegate(compatibilityList.bestOptionsForThisDevice)
                     options.addDelegate(gpuDelegate)
-                    Log.d(TAG, "Trying GPU Delegate")
 
-                    return Interpreter(modelBuffer, options)
+                    val interp = Interpreter(modelBuffer, options)
+
+                    if (needsProbe) {
+                        warmUpProbe(interp)
+                        prober.markSafe(DelegateProber.Delegate.GPU)
+                    }
+
+                    Log.d(TAG, "Using GPU Delegate")
+                    return interp
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "GPU Delegate failed, falling back", e)
+                prober.markBlocked(DelegateProber.Delegate.GPU)
                 gpuDelegate?.close()
                 gpuDelegate = null
             }
+        } else {
+            Log.d(TAG, "GPU Delegate blocked by crash journal, skipping")
         }
 
-        // NNAPI
-        try {
-            val options = Interpreter.Options()
-                .setNumThreads(config.numThreads)
-                .setUseNNAPI(true)
+        // ── NNAPI ────────────────────────────────────────────────────
+        if (!prober.isBlocked(DelegateProber.Delegate.NNAPI)) {
+            try {
+                val needsProbe = !prober.isSafe(DelegateProber.Delegate.NNAPI)
+                if (needsProbe) prober.markProbing(DelegateProber.Delegate.NNAPI)
 
-            Log.d(TAG, "Trying NNAPI")
-            return Interpreter(modelBuffer, options)
-        } catch (e: Exception) {
-            Log.e(TAG, "NNAPI failed, falling back to CPU", e)
+                val options = Interpreter.Options()
+                    .setNumThreads(config.numThreads)
+                    .setUseNNAPI(true)
+
+                val interp = Interpreter(modelBuffer, options)
+
+                if (needsProbe) {
+                    warmUpProbe(interp)
+                    prober.markSafe(DelegateProber.Delegate.NNAPI)
+                }
+
+                Log.d(TAG, "Using NNAPI")
+                return interp
+            } catch (e: Exception) {
+                Log.e(TAG, "NNAPI failed, falling back to CPU", e)
+                prober.markBlocked(DelegateProber.Delegate.NNAPI)
+            }
+        } else {
+            Log.d(TAG, "NNAPI blocked by crash journal, skipping")
         }
 
-        // CPU + XNNPACK
+        // ── CPU + XNNPACK (guaranteed safe, no probing needed) ───────
         val options = Interpreter.Options()
             .setNumThreads(config.numThreads)
             .setUseXNNPACK(true)
 
         Log.d(TAG, "Using CPU (XNNPACK)")
         return Interpreter(modelBuffer, options)
+    }
+
+    /**
+     * Runs a single dummy inference to verify the delegate doesn't crash on [Interpreter.run].
+     * Uses temporary buffers sized to the model's actual tensor shapes.
+     */
+    private fun warmUpProbe(interpreter: Interpreter) {
+        val dummyInput = ByteBuffer
+            .allocateDirect(interpreter.getInputTensor(0).numBytes())
+            .order(ByteOrder.nativeOrder())
+        val dummyOutput = ByteBuffer
+            .allocateDirect(interpreter.getOutputTensor(0).numBytes())
+            .order(ByteOrder.nativeOrder())
+
+        interpreter.run(dummyInput, dummyOutput)
     }
 }

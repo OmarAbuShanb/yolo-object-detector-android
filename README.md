@@ -14,8 +14,7 @@ Designed to be simple to use while still supporting common YOLO model variations
 
 - Supports YOLO float and INT8 TensorFlow Lite models
 - Works with models that include NMS or raw outputs
-- Automatic GPU delegate usage when available
-- CPU fallback with XNNPACK
+- **Crash-safe delegate probing** — automatically selects the best backend (GPU → NNAPI → CPU) and survives native crashes
 - Simple Kotlin API
 - Custom labels support
 
@@ -27,7 +26,7 @@ Designed to be simple to use while still supporting common YOLO model variations
 
 ```kotlin
 dependencies {
-    implementation("io.github.omarabushanb:yolo-object-detector:1.0.3")
+    implementation("io.github.omarabushanb:yolo-object-detector:1.0.4")
 }
 ```
 
@@ -51,7 +50,7 @@ Add the dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.3")
+    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.4")
 }
 ```
 
@@ -123,7 +122,6 @@ override fun onDestroy() {
 | `padColor`          | Padding color used during letterboxing      |
 | `numThreads`        | Number of CPU threads                       |
 | `labels`            | Optional list of class labels               |
-| `useGpuIfAvailable` | Enable GPU delegate automatically           |
 
 Example:
 
@@ -132,8 +130,7 @@ YoloConfig(
     modelAssetPath = "model.tflite",
     confThreshold = 0.25f,
     iouThreshold = 0.7f,
-    numThreads = 4,
-    useGpuIfAvailable = true
+    numThreads = 4
 )
 ```
 
@@ -170,10 +167,29 @@ Both float and full INT8 quantized models are supported.
 
 ---
 
+## Crash-Safe Delegate Probing
+
+The library automatically tries hardware backends in order: **GPU → NNAPI → CPU (XNNPACK)**.
+
+Before each attempt, a `PROBING` flag is written to disk. If the delegate causes a native crash
+(`SIGSEGV` / `SIGABRT` inside `libtensorflowlite_jni.so`), the flag survives the process death.
+On the next cold start the library detects the leftover flag, marks that delegate as **blocked**,
+and skips it permanently for that model — no more crash loops.
+
+| State       | Meaning                                          |
+|-------------|--------------------------------------------------|
+| `UNTESTED`  | Never tried yet                                  |
+| `PROBING`   | Currently being tested (leftover = crash)        |
+| `SAFE`      | Passed construction + warm-up inference          |
+| `BLOCKED`   | Caused a crash — permanently skipped             |
+
+Tracking is **per-model**: a delegate may be safe for one `.tflite` but crash with another.
+CPU + XNNPACK is the guaranteed-safe fallback and is never probed.
+
+> **No configuration needed.** Delegate selection is fully automatic.
+
 ## Performance Notes
 
-- GPU delegate is enabled automatically if supported
-- Falls back to CPU + XNNPACK when GPU is unavailable
 - Always call `close()` to release resources
 
 ---
