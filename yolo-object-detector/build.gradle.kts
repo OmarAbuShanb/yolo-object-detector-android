@@ -49,7 +49,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.omarabushanb",
         artifactId = "yolo-object-detector",
-        version = "1.0.4"
+        version = "1.0.5"
     )
 
     pom {
