@@ -44,7 +44,9 @@ dependencies {
 
 mavenPublishing {
     publishToMavenCentral()
-    signAllPublications()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
 
     coordinates(
         groupId = "io.github.omarabushanb",
