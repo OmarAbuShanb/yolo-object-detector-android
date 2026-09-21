@@ -26,7 +26,7 @@ Designed to be simple to use while still supporting common YOLO model variations
 
 ```kotlin
 dependencies {
-    implementation("io.github.omarabushanb:yolo-object-detector:1.0.4")
+    implementation("io.github.omarabushanb:yolo-object-detector:1.0.6")
 }
 ```
 
@@ -50,7 +50,7 @@ Add the dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.4")
+    implementation("com.github.OmarAbuShanb:yolo-object-detector-android:1.0.6")
 }
 ```
 
